@@ -125,7 +125,7 @@ def matrix_dot(m1, m2):
     return m1[0] * m2[0] + m1[1] * m2[1] + m1[2] * m2[2]
 
 def matrix_magsq(m1):
-    return m1[0]**2 + m1[1]**2 + m1[2]**2
+    return m1[0]*m1[0] + m1[1]*m1[1] + m1[2]*m1[2]
 
 def matrix_add(m1, m2):
     return [m1[0] + m2[0], m1[1] + m2[1], m1[2] + m2[2]]
