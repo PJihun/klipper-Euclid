@@ -1,0 +1,3 @@
+## 2024-05-28 - Avoiding Python List Comprehension Overhead in Hot Paths
+**Learning:** In highly iterated code paths (like calculating distance for every move), `math.sqrt(sum([d*d for d in axes_d[:3]]))` introduces significant overhead due to list object allocation and the function call to `sum()`. For fixed small dimensions (3D space), explicit arithmetic `math.sqrt(axes_d[0]*axes_d[0] + axes_d[1]*axes_d[1] + axes_d[2]*axes_d[2])` is over 3x faster.
+**Action:** When working in Python code handling intensive numeric calculations on fixed-size small lists (especially in kinematics or rendering loops), unroll operations instead of using generator expressions, list comprehensions, or generic functions like `sum()` or `max()` where possible.
