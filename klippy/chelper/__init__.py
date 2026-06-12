@@ -21,7 +21,8 @@ SOURCE_FILES = [
     'itersolve.c', 'trapq.c', 'pollreactor.c', 'msgblock.c', 'trdispatch.c',
     'kin_cartesian.c', 'kin_corexy.c', 'kin_corexz.c', 'kin_delta.c',
     'kin_deltesian.c', 'kin_polar.c', 'kin_rotary_delta.c', 'kin_winch.c',
-    'kin_extruder.c', 'kin_shaper.c', 'kin_idex.c', 'kin_generic.c'
+    'kin_pythagoras.c', 'kin_extruder.c', 'kin_shaper.c', 'kin_idex.c',
+    'kin_generic.c'
 ]
 DEST_LIB = "c_helper.so"
 OTHER_FILES = [
@@ -155,6 +156,17 @@ defs_kin_winch = """
         , double anchor_y, double anchor_z);
 """
 
+defs_kin_pythagoras = """
+    struct stepper_kinematics *pythagoras_stepper_alloc(double x, double y
+        , double r1, double r2);
+    int pythagoras_calc_xy(double target_a, double target_b
+        , double a_x, double a_y, double a_r1, double a_r2
+        , double b_x, double b_y, double b_r1, double b_r2
+        , double x_guess, double y_guess
+        , int max_iter, double tolerance
+        , double *x_out, double *y_out);
+"""
+
 defs_kin_extruder = """
     struct stepper_kinematics *extruder_stepper_alloc(void);
     void extruder_stepper_free(struct stepper_kinematics *sk);
@@ -238,7 +250,7 @@ defs_all = [
     defs_steppersync, defs_itersolve, defs_trapq, defs_trdispatch,
     defs_kin_cartesian, defs_kin_corexy, defs_kin_corexz, defs_kin_delta,
     defs_kin_deltesian, defs_kin_polar, defs_kin_rotary_delta, defs_kin_winch,
-    defs_kin_extruder, defs_kin_shaper, defs_kin_idex,
+    defs_kin_pythagoras, defs_kin_extruder, defs_kin_shaper, defs_kin_idex,
     defs_kin_generic_cartesian,
 ]
 
