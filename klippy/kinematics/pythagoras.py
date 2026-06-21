@@ -3,6 +3,10 @@
 # Copyright (C) 2022  Dmitry Lavrov
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
+
+# This file is modified by Pjihun.
+# The original file is from https://github.com/Dmytry/klipper
+
 import logging
 import chelper
 import stepper
