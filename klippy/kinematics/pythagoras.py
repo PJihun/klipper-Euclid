@@ -68,7 +68,6 @@ class PythagorasKinematics:
 
         for s in self.get_steppers():
             s.set_trapq(toolhead.get_trapq())
-            toolhead.register_step_generator(s.generate_steps)
 
         config.get_printer().register_event_handler("stepper_enable:motor_off",
                                                     self._motor_off)
@@ -151,24 +150,7 @@ class PythagorasKinematics:
                 new_x, new_y = self._internal_calc_position(p[0], p[1])
                 logging.info(f'test results: {x-new_x}, {y-new_y}')
 
-    def _round_to_rail(self, rail, pos):
-        stepper=rail.get_steppers()[0]
-        full_step_dist=stepper._step_dist * stepper._microsteps        
-        offset=round(stepper._mcu_position_offset/full_step_dist)*full_step_dist-stepper._mcu_position_offset
-        # Round to nearest half full step instead, maybe that results in less noise
-        offset+=0.5*full_step_dist
-        a=full_step_dist*round((pos-offset)/full_step_dist)+offset
-        print(f"Rounded rail pos in full steps: {(a+stepper._mcu_position_offset)/full_step_dist}, fsd={full_step_dist}")
-        return a
-    #remove underscore to reenable
-    def _round_to_nearest_full_step(self, position):
-        p=self._calc_steppers_from_xy(position[0], position[1])
-        a=self._round_to_rail(self.rails[0], p[0])
-        b=self._round_to_rail(self.rails[1], p[1])
-        p=self._internal_calc_position(a, b)
-        result=[p[0], p[1]]+position[2:]
-        print(f"Rounded position {position} to nearest full step at {result}, with differences {result[0]-position[0]}, {result[1]-position[1]}")
-        return result
+
 
     def set_position(self, newpos, homing_axes):
         for s in self.steppers:
@@ -244,7 +226,7 @@ class PythagorasKinematics:
 
         if home_z:
             self._home_axis(homing_state, 2, self.rails[2])
-    def _motor_off(self, print_time):
+    def _motor_off(self):
         self.limit_z = (1.0, -1.0)
         #self.limit_xy2 = -1.
     def _check_endstops(self, move):
