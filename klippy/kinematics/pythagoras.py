@@ -158,8 +158,15 @@ class PythagorasKinematics:
 
 
     def set_position(self, newpos, homing_axes):
-        for s in self.steppers:
-            s.set_position(newpos)
+        # For non-Cartesian kinematics, each stepper's position must be set
+        # in stepper-space (belt length), not in XY-space.  Pass the full
+        # newpos so that itersolve can evaluate the forward-kinematics
+        # function (pythagoras_calc_belt_length) at the given (x, y, z)
+        # coordinate and store the correct commanded position.
+        for rail in self.rails:
+            rail.set_position(newpos)
+        # Update last_xy_guess so FK/IK starts from the correct position
+        self._last_xy_guess = [newpos[0], newpos[1]]
         if 'z' in homing_axes:
             self.limit_z = self.rails[2].get_range()
     def note_z_not_homed(self):
