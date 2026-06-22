@@ -97,6 +97,15 @@ class PythagorasKinematics:
         self._xy_out_x = self._ffi_main.new('double[1]')
         self._xy_out_y = self._ffi_main.new('double[1]')
 
+        # Register custom G-code commands
+        gcode = self.printer.lookup_object('gcode')
+        gcode.register_command('PYTHAGORAS_SET_STRINGS',
+                               self.cmd_PYTHAGORAS_SET_STRINGS,
+                               desc=self.cmd_PYTHAGORAS_SET_STRINGS_help)
+        gcode.register_command('PYTHAGORAS_UPDATE_POSITION',
+                               self.cmd_PYTHAGORAS_UPDATE_POSITION,
+                               desc=self.cmd_PYTHAGORAS_UPDATE_POSITION_help)
+
     def get_steppers(self):
         return self.steppers
 
@@ -156,6 +165,30 @@ class PythagorasKinematics:
                 logging.info(f'test results: {x-new_x}, {y-new_y}')
 
 
+
+    cmd_PYTHAGORAS_SET_STRINGS_help = "Set the internal string lengths directly (for homing)"
+    def cmd_PYTHAGORAS_SET_STRINGS(self, gcmd):
+        a = gcmd.get_float('A')
+        b = gcmd.get_float('B')
+        # Use Forward Kinematics to find the fake X, Y coordinates that
+        # produce exactly these belt lengths.
+        x, y = self._internal_calc_position(a, b)
+        toolhead = self.printer.lookup_object('toolhead')
+        curpos = toolhead.get_position()
+        # set_position automatically triggers Klipper to recalculate stepper IK
+        toolhead.set_position([x, y, curpos[2], curpos[3]])
+        gcmd.respond_info(f"Pythagoras strings set to A:{a:.3f} B:{b:.3f} (Calculated pos X:{x:.3f} Y:{y:.3f})")
+
+    cmd_PYTHAGORAS_UPDATE_POSITION_help = "Sync Klipper's toolhead position to current stepper string lengths"
+    def cmd_PYTHAGORAS_UPDATE_POSITION(self, gcmd):
+        # Read the exact string lengths from the stepper's internal tracked state
+        stepper_positions = {s.get_name(): s.get_commanded_position() for s in self.steppers}
+        x, y, z = self.calc_position(stepper_positions)
+        toolhead = self.printer.lookup_object('toolhead')
+        curpos = toolhead.get_position()
+        # Sync the toolhead to these coordinates
+        toolhead.set_position([x, y, curpos[2], curpos[3]])
+        gcmd.respond_info(f"Pythagoras position updated from steppers to X:{x:.3f} Y:{y:.3f}")
 
     def set_position(self, newpos, homing_axes):
         # For non-Cartesian kinematics, each stepper's position must be set
