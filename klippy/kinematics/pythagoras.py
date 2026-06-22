@@ -163,8 +163,28 @@ class PythagorasKinematics:
         # newpos so that itersolve can evaluate the forward-kinematics
         # function (pythagoras_calc_belt_length) at the given (x, y, z)
         # coordinate and store the correct commanded position.
+        logging.info(
+            'Pythagoras set_position: newpos=(%.6f, %.6f, %.6f) homing_axes=%s',
+            newpos[0], newpos[1], newpos[2], homing_axes)
+        # Log commanded position (belt length) BEFORE the update
+        for i, rail in enumerate(self.rails[:2]):
+            for s in rail.get_steppers():
+                logging.info(
+                    '  BEFORE set_position: %s commanded_pos=%.6f',
+                    s.get_name(), s.get_commanded_position())
         for rail in self.rails:
             rail.set_position(newpos)
+        # Log commanded position (belt length) AFTER the update
+        for i, rail in enumerate(self.rails[:2]):
+            for s in rail.get_steppers():
+                logging.info(
+                    '  AFTER  set_position: %s commanded_pos=%.6f',
+                    s.get_name(), s.get_commanded_position())
+        # Also log what the IK says the belt lengths should be at (x,y)
+        ik = self._calc_steppers_from_xy(newpos[0], newpos[1])
+        logging.info(
+            '  IK cross-check: belt_a=%.6f belt_b=%.6f at (%.6f, %.6f)',
+            ik[0], ik[1], newpos[0], newpos[1])
         # Update last_xy_guess so FK/IK starts from the correct position
         self._last_xy_guess = [newpos[0], newpos[1]]
         if 'z' in homing_axes:
