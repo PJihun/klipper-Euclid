@@ -19,13 +19,14 @@ struct pythagoras_stepper {
   struct stepper_kinematics sk;
   double x, y;
   double r1, r2;
+  int is_left_of_pulley;
 };
 
 static double square(double x) { return x * x; }
 
 static double pythagoras_calc_belt_length(double x, double y, double pulley_x,
                                           double pulley_y, double pulley_r,
-                                          double tip_r) {
+                                          double tip_r, int is_left_of_pulley) {
   double dx = x - pulley_x;
   double dy = y - pulley_y;
   double d2 = dx * dx + dy * dy;
@@ -33,12 +34,10 @@ static double pythagoras_calc_belt_length(double x, double y, double pulley_x,
   if (free_belt_sq < 0.)
     free_belt_sq = 0.;
   double free_belt_length = sqrt(free_belt_sq);
-  // Angles are counter clockwise
-  // Left pulley has positive radius and unwinds counterclockwise. Right pulley
-  // has negative radius and unwinds clockwise. The straight belt is at an extra
-  // clockwise angle on the left pulley and rotated counter-clockwise on the
-  // right.
-  double belt_angle = atan2(dy, dx) - atan2(pulley_r + tip_r, free_belt_length);
+  double angle = atan2(dy, dx);
+  if (is_left_of_pulley && angle < 0.)
+    angle += 2. * M_PI;
+  double belt_angle = angle - atan2(pulley_r + tip_r, free_belt_length);
   // Belt length is free belt length + length wrapped around the pulley
   return free_belt_length - belt_angle * pulley_r;
 }
@@ -49,7 +48,7 @@ static double pythagoras_stepper_calc_position(struct stepper_kinematics *sk,
   struct pythagoras_stepper *hs =
       container_of(sk, struct pythagoras_stepper, sk);
   struct coord c = move_get_coord(m, move_time);
-  return pythagoras_calc_belt_length(c.x, c.y, hs->x, hs->y, hs->r1, hs->r2);
+  return pythagoras_calc_belt_length(c.x, c.y, hs->x, hs->y, hs->r1, hs->r2, hs->is_left_of_pulley);
 }
 
 int __visible pythagoras_calc_xy(double target_a, double target_b, double a_x,
@@ -64,10 +63,12 @@ int __visible pythagoras_calc_xy(double target_a, double target_b, double a_x,
   double x = x_guess;
   double y = y_guess;
   double tolerance2 = tolerance * tolerance;
+  int a_is_left = (x_guess < a_x);
+  int b_is_left = (x_guess < b_x);
 
   for (int i = 0; i < max_iter; i++) {
-    double a0 = pythagoras_calc_belt_length(x, y, a_x, a_y, a_r1, a_r2);
-    double b0 = pythagoras_calc_belt_length(x, y, b_x, b_y, b_r1, b_r2);
+    double a0 = pythagoras_calc_belt_length(x, y, a_x, a_y, a_r1, a_r2, a_is_left);
+    double b0 = pythagoras_calc_belt_length(x, y, b_x, b_y, b_r1, b_r2, b_is_left);
     double residual_a = target_a - a0;
     double residual_b = target_b - b0;
     double residual2 = residual_a * residual_a + residual_b * residual_b;
@@ -75,10 +76,10 @@ int __visible pythagoras_calc_xy(double target_a, double target_b, double a_x,
       break;
 
     double eps = 1.0e-6;
-    double a_dx = pythagoras_calc_belt_length(x + eps, y, a_x, a_y, a_r1, a_r2);
-    double b_dx = pythagoras_calc_belt_length(x + eps, y, b_x, b_y, b_r1, b_r2);
-    double a_dy = pythagoras_calc_belt_length(x, y + eps, a_x, a_y, a_r1, a_r2);
-    double b_dy = pythagoras_calc_belt_length(x, y + eps, b_x, b_y, b_r1, b_r2);
+    double a_dx = pythagoras_calc_belt_length(x + eps, y, a_x, a_y, a_r1, a_r2, a_is_left);
+    double b_dx = pythagoras_calc_belt_length(x + eps, y, b_x, b_y, b_r1, b_r2, b_is_left);
+    double a_dy = pythagoras_calc_belt_length(x, y + eps, a_x, a_y, a_r1, a_r2, a_is_left);
+    double b_dy = pythagoras_calc_belt_length(x, y + eps, b_x, b_y, b_r1, b_r2, b_is_left);
 
     double j00 = (a_dx - a0) / eps;
     double j01 = (a_dy - a0) / eps;
@@ -112,8 +113,8 @@ int __visible pythagoras_calc_xy(double target_a, double target_b, double a_x,
   *y_out = y;
 
   {
-    double a0 = pythagoras_calc_belt_length(x, y, a_x, a_y, a_r1, a_r2);
-    double b0 = pythagoras_calc_belt_length(x, y, b_x, b_y, b_r1, b_r2);
+    double a0 = pythagoras_calc_belt_length(x, y, a_x, a_y, a_r1, a_r2, a_is_left);
+    double b0 = pythagoras_calc_belt_length(x, y, b_x, b_y, b_r1, b_r2, b_is_left);
     double residual_a = target_a - a0;
     double residual_b = target_b - b0;
     double residual2 = residual_a * residual_a + residual_b * residual_b;
@@ -126,7 +127,8 @@ int __visible pythagoras_calc_xy(double target_a, double target_b, double a_x,
 struct stepper_kinematics *__visible pythagoras_stepper_alloc(double x,
                                                               double y,
                                                               double r1,
-                                                              double r2) {
+                                                              double r2,
+                                                              int is_left_of_pulley) {
   struct pythagoras_stepper *hs = malloc(sizeof(*hs));
   if (!hs)
     return NULL;
@@ -135,6 +137,7 @@ struct stepper_kinematics *__visible pythagoras_stepper_alloc(double x,
   hs->y = y;
   hs->r1 = r1;
   hs->r2 = r2;
+  hs->is_left_of_pulley = is_left_of_pulley;
   hs->sk.calc_position_cb = pythagoras_stepper_calc_position;
   hs->sk.active_flags = AF_X | AF_Y;
   return &hs->sk;

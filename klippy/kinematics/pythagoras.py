@@ -50,9 +50,10 @@ class PythagorasKinematics:
                 stepper_configs[i].getfloat('tip_r'),
                 stepper_configs[i].getfloat('position_max')
                 )
-            self.kin_params.append(kin_params);
+            self.kin_params.append(kin_params)
+            is_left_of_pulley = 1 if self.home_x < kin_params[0] else 0
             self.rails[i].setup_itersolve('pythagoras_stepper_alloc',
-                *kin_params[:4])
+                kin_params[0], kin_params[1], kin_params[2], kin_params[3], is_left_of_pulley)
 
         self.rails[2].setup_itersolve('cartesian_stepper_alloc', b'z')
         # Set correct endstop values based on Inverse Kinematics calculation

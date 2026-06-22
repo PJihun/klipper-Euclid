@@ -158,7 +158,7 @@ defs_kin_winch = """
 
 defs_kin_pythagoras = """
     struct stepper_kinematics *pythagoras_stepper_alloc(double x, double y
-        , double r1, double r2);
+        , double r1, double r2, int is_left_of_pulley);
     int pythagoras_calc_xy(double target_a, double target_b
         , double a_x, double a_y, double a_r1, double a_r2
         , double b_x, double b_y, double b_r1, double b_r2
