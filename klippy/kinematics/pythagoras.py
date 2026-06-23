@@ -166,10 +166,36 @@ class PythagorasKinematics:
 
 
 
-    cmd_PYTHAGORAS_SET_STRINGS_help = "Set the internal string lengths directly (for homing)"
+    cmd_PYTHAGORAS_SET_STRINGS_help = "Set the internal string lengths directly using free length and angle"
     def cmd_PYTHAGORAS_SET_STRINGS(self, gcmd):
-        a = gcmd.get_float('A')
-        b = gcmd.get_float('B')
+        import math
+        f_a = gcmd.get_float('F_A')
+        t_a = gcmd.get_float('T_A')
+        f_b = gcmd.get_float('F_B')
+        t_b = gcmd.get_float('T_B')
+
+        mid_x = (self.kin_params[0][0] + self.kin_params[1][0]) / 2.0
+        a_is_left = 1 if mid_x < self.kin_params[0][0] else 0
+        b_is_left = 1 if mid_x < self.kin_params[1][0] else 0
+
+        def normalize_angle(angle_deg, is_left):
+            # Normalize to [-180, 180)
+            angle_deg = (angle_deg + 180.0) % 360.0 - 180.0
+            rad = math.radians(angle_deg)
+            if is_left and rad < 0.0:
+                rad += 2.0 * math.pi
+            return rad
+
+        belt_angle_a = normalize_angle(t_a, a_is_left)
+        belt_angle_b = normalize_angle(t_b, b_is_left)
+
+        pulley_r_a = self.kin_params[0][2]
+        pulley_r_b = self.kin_params[1][2]
+
+        # Belt length is free string length minus the length wrapped around the pulley
+        a = f_a - (belt_angle_a * pulley_r_a)
+        b = f_b - (belt_angle_b * pulley_r_b)
+
         # Use Forward Kinematics to find the fake X, Y coordinates that
         # produce exactly these belt lengths.
         x, y = self._internal_calc_position(a, b)
@@ -177,7 +203,7 @@ class PythagorasKinematics:
         curpos = toolhead.get_position()
         # set_position automatically triggers Klipper to recalculate stepper IK
         toolhead.set_position([x, y, curpos[2], curpos[3]])
-        gcmd.respond_info(f"Pythagoras strings set to A:{a:.3f} B:{b:.3f} (Calculated pos X:{x:.3f} Y:{y:.3f})")
+        gcmd.respond_info(f"Pythagoras strings calculated: A:{a:.3f} B:{b:.3f} (Pos X:{x:.3f} Y:{y:.3f})")
 
     cmd_PYTHAGORAS_UPDATE_POSITION_help = "Sync Klipper's toolhead position to current stepper string lengths"
     def cmd_PYTHAGORAS_UPDATE_POSITION(self, gcmd):
